@@ -1,0 +1,205 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ToastSuccess from '../components/ToastSuccess.astro';
+---
+
+<Layout title="Guess Word.">
+	<ToastSuccess/>
+	<main class="h-screen w-screen m-auto flex justify-center items-center font-outfit">
+		<div class="w-[440px] max-w-[90%] h-[400px] rounded-lg p-8 bg-grad bg-gradient-mio">
+			<div class="w-full flex justify-center">
+				<img class="title" src="./wordscramblle.svg"/>
+			</div>
+			<div class="w-full flex justify-center items-center mt-8">
+				<div class="flex justify-center items-center h-[65px] w-full rounded-md p-3 bg-[#4A5567] shadow-md shadow-[#141620] font-outfit tracking-[15px] border-b-[4px] border-b-[#030616]">
+					<p id="scrambled-word" class="text-center text-[32px] text-[#97A3B6] pl-3"></p>
+				</div>
+			</div>
+			<div class="flex justify-around items-center mt-4">
+				<div class="flex justify-center items-center gap-2">
+					<p class="text-[#4A5567] text-xs">Tries<span id="tries">(4/5)</span>:</p>
+					<div id="tries-points" class="flex justify-center items-center gap-2 pt-[2px]">
+						<!-- <div class="w-[6px] h-[6px] bg-[#7429C6] rounded-full"></div>
+						<div class="w-[6px] h-[6px] bg-[#4A5567] rounded-full"></div> -->
+					</div>
+				</div>
+				<div class="flex justify-center items-center gap-2">
+					<p class="text-[#4A5567] text-xs">Mistakes:</p>
+					<p id="mistakes" class="text-[#97A3B6] text-base font-[500] pb-[2px]">a, e, w, t</p>
+				</div>
+			</div>
+			<div id="containerInputs" class="flex justify-center gap-2 my-12 w-full">
+				<!-- <input type="text" class="bg-transparent w-11 h-10 border-[3px] border-[#4A5567] rounded-lg focus:outline-none focus:border-[#672171] text-[#F2F5F9] text-center caret-[#F2F5F9]"> -->
+			</div>
+			<div class="flex justify-around items-center">
+				<button id="random" class="text-sm text-[#F2F5F9] bg-[#C951E7] w-28 h-10 rounded-lg border-b-4 border-b-[#672171]">Random</button>
+				<button id="reset" class="text-sm text-[#F2F5F9] bg-[#C951E7] w-28 h-10 rounded-lg border-b-4 border-b-[#672171]">Reset</button>
+		</div>
+		</div>
+	</main>
+</Layout>
+
+
+<script>
+
+	let randomWord: string = "";
+	let triesCount = 5;
+	let mistakesWords: string[] = [];
+
+	const getElement = (id: string) => {
+		return document.querySelector(`#${id}`) as HTMLElement;
+	}
+
+	const scrambledWord: HTMLElement = document.querySelector("#scrambled-word")!;
+	const $containerInputs = getElement("containerInputs");
+	const $mistakes = getElement("mistakes");
+	const $resetBtn = getElement("reset");
+	const $randomBtn = getElement("random");
+	const $tries = getElement("tries");
+	const $triesPoints = getElement("tries-points");
+	const $toast = getElement("toast-success");
+	const $toastBtn = getElement("button-toast");
+
+	const getNewCrambledWord = () => {
+		const words = ["apple", "beach", "cloud", "dance", "eagle", "flame", "green", "happy", "igloo", "joker", "kite", "lemon", "music", "night", "ocean", "pizza", "queen", "river", "sunny", "table", "umbra", "vivid", "water", "xyloz", "young", "zebra", "alarm", "blaze", "crane", "daisy", "earth", "fairy", "grape", "heart", "island", "juice", "koala", "leopard", "magic", "ninja", "orange", "pencil", "rabbit", "shadow", "tiger", "ultra", "vortex", "wizard",];
+		const randomIndex = Math.floor(Math.random() * words.length);
+
+		randomWord = words[randomIndex];
+		console.log(randomWord);
+
+		const scramble = (word: string) => {
+			const arrayWord = word.split("");
+	
+			for (let i = word.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[arrayWord[i], arrayWord[j]] = [arrayWord[j], arrayWord[i]]
+			};
+	
+			return arrayWord.join('');
+		};
+	
+		scrambledWord.innerText = scramble(randomWord);
+	};
+
+	const renderTries = (triesCount: number) => {
+		let html = ""
+
+		for (let i = 1; i <= 5; i++) {
+			(i <= triesCount) 
+				? html += "<div class='w-[6px] h-[6px] bg-[#7429C6] rounded-full'></div>" 
+				: html += "<div class='w-[6px] h-[6px] bg-[#4A5567] rounded-full'></div>"
+		};
+
+		$tries.innerText = `(${triesCount}/5)`;
+		$triesPoints.innerHTML = html;
+	};
+
+	const renderMistakes = (word?: string, reset?: boolean) => {
+		if (reset) {
+			$mistakes.innerText = "";
+			mistakesWords = [];
+			return
+		};
+		if (!word && mistakesWords.length === 0) {
+			$mistakes.innerText = "";
+			return
+		};
+		mistakesWords = [...mistakesWords, word!];
+		let stringWords = "";
+		mistakesWords.forEach((word, i) => {
+			(i === mistakesWords.length - 1) ? stringWords = stringWords + word + " " : stringWords = stringWords + word + ", ";
+		});
+		$mistakes.innerText = stringWords;
+	};
+
+	const listenerInputs = () => {
+		const elements = Array.from($containerInputs.children);
+		const inputs = elements.map(element => element as HTMLInputElement);
+
+		let solucion: boolean[] = [];
+
+		for (let i = 1; i <= inputs.length; i++) {
+			solucion = [...solucion, false];
+		};
+
+		inputs.forEach((input, i) => {
+			const char = input.getAttribute("char");
+			let correct = "";
+
+			input.addEventListener("input", (event: InputEventInit) => {
+				const data = event.data?.toLocaleLowerCase().trim();
+				if (triesCount === 0) {
+					renderInputs();
+					renderMistakes(undefined, true);
+					triesCount = 5;
+					renderTries(triesCount);
+				} else if (correct !== "") {
+					input.value = correct;
+				} else if (data !== char) {
+					triesCount = triesCount - 1;
+					renderTries(triesCount);
+					input.value = "";
+					renderMistakes(data);
+				} else {
+					correct = data;
+					input.value = data || "";
+					solucion[i] = true;
+					if (i !== inputs.length - 1) {
+						const nextInput = document.querySelector(`#input-${i + 1}`) as HTMLInputElement;
+						nextInput.focus();
+					};
+					if (solucion.includes(false)) return;
+					$toast.classList.replace("hidden", "flex");
+				}
+			});
+		})
+	}
+
+	const renderInputs = () => {
+		let htlm = "";
+		randomWord.split("").forEach((char, i) => {
+			htlm += `
+				<input
+					id="input-${i}" 
+					type='text' 
+					class='bg-transparent w-11 h-10 border-[3px] border-[#4A5567] rounded-lg focus:outline-none focus:border-[#672171] text-[#F2F5F9] text-xl text-center caret-[#F2F5F9] flex items-center' 
+					char="${char}"		
+				/>
+			`
+		});
+		$containerInputs.innerHTML = htlm;
+		listenerInputs();
+	};
+
+
+	//Inicializar nuestra aplicación:
+	(() => {
+		getNewCrambledWord();
+		renderInputs();
+		renderTries(triesCount);
+		renderMistakes();
+	})();
+
+	$resetBtn.addEventListener("click", () => {
+		renderInputs();
+		renderMistakes(undefined, true);
+		triesCount = 5;
+		renderTries(triesCount);
+	})
+
+	$randomBtn.addEventListener("click", () => {
+		getNewCrambledWord();
+		renderInputs();
+	});
+
+	$toastBtn.addEventListener("click", () => {
+		$toast.classList.replace("flex", "hidden");
+	});
+</script>
+
+
+<style>
+	.bg-gradient-mio {
+		background: linear-gradient(90deg, rgba(3,6,22,1) 0%, rgba(23,30,46,1) 100%);
+	}
+</style>
